@@ -1,16 +1,33 @@
 #Requires -Version 5.1
 # ================================================
-# SteaMar Fix Games Not Showing Script
+# Abo Hassan - All-in-One Installer
 # Created by: Abo Hassan (أبو حسن)
 # Year: 2025
+# ================================================
+# This script will:
+#   1. Update Steam to latest version
+#   2. Install Millennium
+#   3. Install Luatools Plugin
 # ================================================
 
 Clear-Host
 
+# Configuration
+$pluginName = "luatools"
+$pluginLink = "https://github.com/madoiscool/ltsteamplugin/releases/latest/download/ltsteamplugin.zip"
+
+# Hide progress bar
+$ProgressPreference = 'SilentlyContinue'
+
 # Minimal header
 Write-Host ""
-Write-Host "  Abo Hassan - Fix Games Not Showing" -ForegroundColor Cyan
-Write-Host "  ================================" -ForegroundColor DarkGray
+Write-Host "  Abo Hassan - All-in-One Installer" -ForegroundColor Cyan
+Write-Host "  ===================================" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "  This will install:" -ForegroundColor DarkGray
+Write-Host "    1. Update Steam" -ForegroundColor DarkGray
+Write-Host "    2. Millennium" -ForegroundColor DarkGray
+Write-Host "    3. Luatools Plugin" -ForegroundColor DarkGray
 Write-Host ""
 
 # Function to get Steam path
@@ -38,8 +55,10 @@ function Get-SteamPath {
     return $null
 }
 
-# Step 1: Detect Steam
-Write-Host "  [1/6] Detecting Steam..." -ForegroundColor Yellow -NoNewline
+# ============================================
+# STEP 1: Detect Steam
+# ============================================
+Write-Host "  [1/7] Detecting Steam..." -ForegroundColor Yellow -NoNewline
 $steamPath = Get-SteamPath
 
 if (-not $steamPath) {
@@ -64,15 +83,18 @@ if (-not (Test-Path $steamExePath)) {
 }
 
 Write-Host " OK" -ForegroundColor Green
+Write-Host "        Path: $steamPath" -ForegroundColor DarkGray
 Write-Host ""
 
-# Step 2: Close Steam
-Write-Host "  [2/6] Closing Steam..." -ForegroundColor Yellow -NoNewline
-$steamProcesses = Get-Process -Name "steam" -ErrorAction SilentlyContinue
+# ============================================
+# STEP 2: Close Steam
+# ============================================
+Write-Host "  [2/7] Closing Steam..." -ForegroundColor Yellow -NoNewline
+$steamProcesses = Get-Process -Name "steam*" -ErrorAction SilentlyContinue
 if ($steamProcesses) {
     $steamProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
-    $remainingProcesses = Get-Process -Name "steam" -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 3
+    $remainingProcesses = Get-Process -Name "steam*" -ErrorAction SilentlyContinue
     if ($remainingProcesses) {
         Start-Sleep -Seconds 2
         $remainingProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -81,112 +103,171 @@ if ($steamProcesses) {
 Write-Host " OK" -ForegroundColor Green
 Write-Host ""
 
-# Step 3: Update shortcuts
-Write-Host "  [3/6] Updating Steam shortcuts..." -ForegroundColor Yellow -NoNewline
-$shortcutPaths = @(
-    "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Steam\Steam.lnk",
-    "$env:USERPROFILE\Desktop\Steam.lnk",
-    "$env:PUBLIC\Desktop\Steam.lnk"
-)
-
-$shortcutUpdated = $false
-foreach ($shortcutPath in $shortcutPaths) {
-    if (Test-Path $shortcutPath) {
-        try {
-            $shell = New-Object -ComObject WScript.Shell
-            $shortcut = $shell.CreateShortcut($shortcutPath)
-            $shortcut.TargetPath = $steamExePath
-            $shortcut.Arguments = "-forcesteamupdate -forcepackagedownload -overridepackageurl http://web.archive.org/web/20230531113527if_/media.steampowered.com/client -exitsteam"
-            $shortcut.Save()
-            $shortcutUpdated = $true
-        } catch { }
-    }
-}
-Write-Host " OK" -ForegroundColor Green
-Write-Host ""
-
-# Step 4: Run Steam with parameters
-Write-Host "  [4/6] Running Steam update..." -ForegroundColor Yellow
-Write-Host "        Please wait, this may take a few minutes..." -ForegroundColor DarkGray
-Write-Host ""
-
-try {
-    $process = Start-Process -FilePath $steamExePath -ArgumentList "-forcesteamupdate", "-forcepackagedownload", "-overridepackageurl", "http://web.archive.org/web/20230531113527if_/media.steampowered.com/client", "-exitsteam" -PassThru -WindowStyle Minimized
-    
-    $timeout = 600
-    $elapsed = 0
-    $checkInterval = 5
-    
-    while (-not $process.HasExited -and $elapsed -lt $timeout) {
-        Start-Sleep -Seconds $checkInterval
-        $elapsed += $checkInterval
-        
-        if ($elapsed % 30 -eq 0) {
-            $minutes = [math]::Floor($elapsed / 60)
-            $seconds = $elapsed % 60
-            Write-Host "        Still waiting... ($minutes min $seconds sec)" -ForegroundColor DarkGray
-        }
-    }
-    
-    if (-not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    }
-    
-    Write-Host "  [4/6] Update complete" -ForegroundColor Green
-} catch {
-    Write-Host "  [4/6] FAILED" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  Press any key to exit..."
-    $null = $Host.UI.RawUI.ReadKey()
-    exit 1
-}
-Write-Host ""
-
-# Step 5: Restore shortcuts
-Write-Host "  [5/6] Restoring shortcuts..." -ForegroundColor Yellow -NoNewline
-foreach ($shortcutPath in $shortcutPaths) {
-    if (Test-Path $shortcutPath) {
-        try {
-            $shell = New-Object -ComObject WScript.Shell
-            $shortcut = $shell.CreateShortcut($shortcutPath)
-            $shortcut.TargetPath = $steamExePath
-            $shortcut.Arguments = ""
-            $shortcut.Save()
-        } catch { }
-    }
-}
-Write-Host " OK" -ForegroundColor Green
-Write-Host ""
-
-# Step 6: Create steam.cfg
-Write-Host "  [6/6] Creating steam.cfg..." -ForegroundColor Yellow -NoNewline
+# ============================================
+# STEP 3: Remove steam.cfg (allows updates & Millennium)
+# ============================================
+Write-Host "  [3/7] Removing steam.cfg..." -ForegroundColor Yellow -NoNewline
 $steamCfgPath = Join-Path $steamPath "steam.cfg"
 
 if (Test-Path $steamCfgPath) {
-    Remove-Item -Path $steamCfgPath -Force -ErrorAction SilentlyContinue
+    try {
+        Remove-Item -Path $steamCfgPath -Force -ErrorAction Stop
+        Write-Host " OK" -ForegroundColor Green
+        Write-Host "        Removed update blocker" -ForegroundColor DarkGray
+    } catch {
+        Write-Host " FAILED" -ForegroundColor Red
+        Write-Host "        Please delete steam.cfg manually" -ForegroundColor DarkGray
+    }
+} else {
+    Write-Host " OK" -ForegroundColor Green
+    Write-Host "        No blocker found" -ForegroundColor DarkGray
+}
+Write-Host ""
+
+# ============================================
+# STEP 4: Install Millennium
+# ============================================
+Write-Host "  [4/7] Checking Millennium..." -ForegroundColor Yellow -NoNewline
+
+$millenniumFiles = @("millennium.dll", "python311.dll", "user32.dll")
+$millenniumInstalled = $true
+
+foreach ($file in $millenniumFiles) {
+    $filePath = Join-Path $steamPath $file
+    if (-not (Test-Path $filePath)) {
+        $millenniumInstalled = $false
+        break
+    }
 }
 
-$cfgContent = "BootStrapperInhibitAll=Enable`nBootStrapperForceSelfUpdate=False"
+if ($millenniumInstalled) {
+    Write-Host " Already Installed" -ForegroundColor Green
+    Write-Host ""
+} else {
+    Write-Host " Not Found" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  [4/7] Installing Millennium..." -ForegroundColor Yellow
+    Write-Host "        Please wait, downloading from steambrew.app..." -ForegroundColor DarkGray
+    
+    try {
+        & { Invoke-Expression (Invoke-WebRequest 'https://steambrew.app/install.ps1' -UseBasicParsing).Content } *> $null
+        Write-Host "        Millennium installed!" -ForegroundColor Green
+    } catch {
+        Write-Host "        Millennium installation failed!" -ForegroundColor Red
+        Write-Host "        Error: $_" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+}
+
+# ============================================
+# STEP 5: Check Steamtools
+# ============================================
+Write-Host "  [5/7] Checking Steamtools..." -ForegroundColor Yellow -NoNewline
+$steamtoolsPath = Join-Path $steamPath "xinput1_4.dll"
+
+if (Test-Path $steamtoolsPath) {
+    Write-Host " Already Installed" -ForegroundColor Green
+    Write-Host ""
+} else {
+    Write-Host " Not Found" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  [5/7] Installing Steamtools..." -ForegroundColor Yellow
+    Write-Host "        Please wait..." -ForegroundColor DarkGray
+    
+    try {
+        # Get and filter the installation script
+        $script = Invoke-RestMethod "https://steam.run"
+        $keptLines = @()
+
+        foreach ($line in $script -split "`n") {
+            $conditions = @(
+                ($line -imatch "Start-Process" -and $line -imatch "steam"),
+                ($line -imatch "steam\.exe"),
+                ($line -imatch "Start-Sleep" -or $line -imatch "Write-Host"),
+                ($line -imatch "cls" -or $line -imatch "exit"),
+                ($line -imatch "Stop-Process" -and -not ($line -imatch "Get-Process"))
+            )
+            
+            if (-not($conditions -contains $true)) {
+                $keptLines += $line
+            }
+        }
+
+        $SteamtoolsScript = $keptLines -join "`n"
+        Invoke-Expression $SteamtoolsScript *> $null
+
+        if (Test-Path $steamtoolsPath) {
+            Write-Host "        Steamtools installed!" -ForegroundColor Green
+        } else {
+            Write-Host "        Steamtools installation failed!" -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "        Steamtools installation failed!" -ForegroundColor Red
+        Write-Host "        Error: $_" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+}
+
+# ============================================
+# STEP 6: Install Plugin
+# ============================================
+Write-Host "  [6/7] Installing $pluginName plugin..." -ForegroundColor Yellow
+
+# Ensure plugins folder exists
+$pluginsFolder = Join-Path $steamPath "plugins"
+if (-not (Test-Path $pluginsFolder)) {
+    New-Item -Path $pluginsFolder -ItemType Directory *> $null
+}
+
+$pluginPath = Join-Path $pluginsFolder $pluginName
+
+# Check if plugin already exists
+foreach ($plugin in Get-ChildItem -Path $pluginsFolder -Directory -ErrorAction SilentlyContinue) {
+    $jsonPath = Join-Path $plugin.FullName "plugin.json"
+    if (Test-Path $jsonPath) {
+        $json = Get-Content $jsonPath -Raw | ConvertFrom-Json
+        if ($json.name -eq $pluginName) {
+            Write-Host "        Plugin found, updating..." -ForegroundColor DarkGray
+            $pluginPath = $plugin.FullName
+            break
+        }
+    }
+}
+
+# Download and install plugin
+$tempZip = Join-Path $env:TEMP "$pluginName.zip"
 
 try {
-    Set-Content -Path $steamCfgPath -Value $cfgContent -Force -Encoding ASCII
-    Write-Host " OK" -ForegroundColor Green
+    Write-Host "        Downloading $pluginName..." -ForegroundColor DarkGray
+    Invoke-WebRequest -Uri $pluginLink -OutFile $tempZip *> $null
+    
+    Write-Host "        Extracting $pluginName..." -ForegroundColor DarkGray
+    Expand-Archive -Path $tempZip -DestinationPath $pluginPath -Force *> $null
+    Remove-Item $tempZip -ErrorAction SilentlyContinue
+    
+    Write-Host "  [6/7] Plugin installed!" -ForegroundColor Green
 } catch {
-    Write-Host " FAILED" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  Press any key to exit..."
-    $null = $Host.UI.RawUI.ReadKey()
-    exit 1
+    Write-Host "  [6/7] Plugin installation failed!" -ForegroundColor Red
+    Write-Host "        Error: $_" -ForegroundColor DarkGray
 }
+Write-Host ""
+
+# ============================================
+# STEP 7: Launch Steam
+# ============================================
+Write-Host "  [7/7] Launching Steam..." -ForegroundColor Yellow -NoNewline
+Write-Host " OK" -ForegroundColor Green
 Write-Host ""
 
 # Success message
-Write-Host "  ================================" -ForegroundColor DarkGray
-Write-Host "  Fix completed successfully!" -ForegroundColor Green
+Write-Host "  ===================================" -ForegroundColor DarkGray
+Write-Host "  Installation Complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Your games should now appear in Steam." -ForegroundColor Cyan
-Write-Host "  You can close this window and launch Steam." -ForegroundColor DarkGray
+Write-Host "  Note: First Steam startup will be slower." -ForegroundColor Yellow
+Write-Host "  Don't panic and wait for Steam to load!" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  Press any key to exit..."
+Write-Host "  Press any key to launch Steam and enable plugin..."
 $null = $Host.UI.RawUI.ReadKey()
 
+# Launch Steam and enable plugin
+Start-Process "steam://millennium/settings/plugins/enable/$pluginName"
