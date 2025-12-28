@@ -127,39 +127,19 @@ Write-Host ""
 # ============================================
 # STEP 4: Install Millennium
 # ============================================
-Write-Host "  [4/7] Checking Millennium..." -ForegroundColor Yellow -NoNewline
+Write-Host "  [4/7] Installing Millennium..." -ForegroundColor Yellow
+Write-Host "        Please wait, downloading from steambrew.app..." -ForegroundColor DarkGray
+Write-Host ""
 
-$millenniumFiles = @("millennium.dll", "python311.dll", "user32.dll")
-$millenniumInstalled = $true
-
-foreach ($file in $millenniumFiles) {
-    $filePath = Join-Path $steamPath $file
-    if (-not (Test-Path $filePath)) {
-        $millenniumInstalled = $false
-        break
-    }
+try {
+    & { Invoke-Expression (Invoke-WebRequest 'https://steambrew.app/install.ps1' -UseBasicParsing).Content }
+    Write-Host ""
+    Write-Host "        Millennium installed!" -ForegroundColor Green
+} catch {
+    Write-Host "        Millennium installation failed!" -ForegroundColor Red
+    Write-Host "        Error: $_" -ForegroundColor DarkGray
 }
-
-if ($millenniumInstalled) {
-    Write-Host " Already Installed" -ForegroundColor Green
-    Write-Host ""
-} else {
-    Write-Host " Not Found" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  [4/7] Installing Millennium..." -ForegroundColor Yellow
-    Write-Host "        Please wait, downloading from steambrew.app..." -ForegroundColor DarkGray
-    Write-Host ""
-    
-    try {
-        & { Invoke-Expression (Invoke-WebRequest 'https://steambrew.app/install.ps1' -UseBasicParsing).Content }
-        Write-Host ""
-        Write-Host "        Millennium installed!" -ForegroundColor Green
-    } catch {
-        Write-Host "        Millennium installation failed!" -ForegroundColor Red
-        Write-Host "        Error: $_" -ForegroundColor DarkGray
-    }
-    Write-Host ""
-}
+Write-Host ""
 
 # ============================================
 # STEP 5: Check Steamtools
