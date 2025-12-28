@@ -295,3 +295,4 @@ Write-Host ""
 Write-Host "  Done! If plugin doesn't appear, restart Steam manually." -ForegroundColor Green
 Write-Host "  Press any key to exit..."
 $null = $Host.UI.RawUI.ReadKey()
+
