@@ -1,16 +1,18 @@
 #Requires -Version 5.1
 # ================================================
-# Abo Hassan - All-in-One Installer (TEST VERSION)
+# Abo Hassan - Steam Reset Tool
 # Created by: Abo Hassan (أبو حسن)
 # Year: 2025
 # ================================================
 # This script will:
-#   1. Install Millennium (force reinstall)
-#   2. Install Steamtools
-#   3. Install Luatools Plugin
+#   1. Backup config folder to Desktop
+#   2. Delete Steam.dll, Steam.cfg, Steam2.dll
+#   3. Launch Steam (login required)
+#   4. Close Steam after login
+#   5. Restore config (except depotcache, stplug-in)
 # ================================================
 
-# Check for Admin privileges and restart if needed
+# Check for Admin privileges
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Requesting Administrator privileges..." -ForegroundColor Yellow
     Start-Process PowerShell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
@@ -19,23 +21,13 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 Clear-Host
 
-# Configuration
-$pluginName = "luatools"
-$pluginLink = "https://github.com/madoiscool/ltsteamplugin/releases/latest/download/ltsteamplugin.zip"
-
 # Hide progress bar
 $ProgressPreference = 'SilentlyContinue'
 
-# Minimal header
+# Header
 Write-Host ""
-Write-Host "  Abo Hassan - All-in-One Installer" -ForegroundColor Cyan
-Write-Host "  =================================== " -ForegroundColor DarkGray
-Write-Host "  [TEST VERSION]" -ForegroundColor Magenta
-Write-Host ""
-Write-Host "  This will install:" -ForegroundColor DarkGray
-Write-Host "    1. Millennium (force reinstall)" -ForegroundColor DarkGray
-Write-Host "    2. Steamtools" -ForegroundColor DarkGray
-Write-Host "    3. Luatools Plugin" -ForegroundColor DarkGray
+Write-Host "  Abo Hassan - Steam Reset Tool" -ForegroundColor Cyan
+Write-Host "  ===================================" -ForegroundColor DarkGray
 Write-Host ""
 
 # Function to get Steam path
@@ -66,7 +58,7 @@ function Get-SteamPath {
 # ============================================
 # STEP 1: Detect Steam
 # ============================================
-Write-Host "  [1/8] Detecting Steam..." -ForegroundColor Yellow -NoNewline
+Write-Host "  [1/7] Detecting Steam..." -ForegroundColor Yellow -NoNewline
 $steamPath = Get-SteamPath
 
 if (-not $steamPath) {
@@ -79,240 +71,171 @@ if (-not $steamPath) {
     exit 1
 }
 
-$steamExePath = Join-Path $steamPath "steam.exe"
-if (-not (Test-Path $steamExePath)) {
-    Write-Host " FAILED" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  steam.exe not found." -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  Press any key to exit..."
-    $null = $Host.UI.RawUI.ReadKey()
-    exit 1
-}
-
 Write-Host " OK" -ForegroundColor Green
 Write-Host "        Path: $steamPath" -ForegroundColor DarkGray
 Write-Host ""
 
+# Define paths
+$configPath = Join-Path $steamPath "config"
+$desktopPath = [Environment]::GetFolderPath("Desktop")
+$backupPath = Join-Path $desktopPath "Steam_Config_Backup"
+
 # ============================================
 # STEP 2: Close Steam
 # ============================================
-Write-Host "  [2/8] Closing Steam..." -ForegroundColor Yellow -NoNewline
+Write-Host "  [2/7] Closing Steam..." -ForegroundColor Yellow -NoNewline
 $steamProcesses = Get-Process -Name "steam*" -ErrorAction SilentlyContinue
 if ($steamProcesses) {
     $steamProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 3
-    $remainingProcesses = Get-Process -Name "steam*" -ErrorAction SilentlyContinue
-    if ($remainingProcesses) {
-        Start-Sleep -Seconds 2
-        $remainingProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
-    }
 }
 Write-Host " OK" -ForegroundColor Green
 Write-Host ""
 
 # ============================================
-# STEP 3: Remove steam.cfg (allows updates & Millennium)
+# STEP 3: Move (cut) config folder to Desktop
 # ============================================
-Write-Host "  [3/8] Removing steam.cfg..." -ForegroundColor Yellow -NoNewline
-$steamCfgPath = Join-Path $steamPath "steam.cfg"
+Write-Host "  [3/7] Moving config folder to Desktop..." -ForegroundColor Yellow -NoNewline
 
-if (Test-Path $steamCfgPath) {
+if (Test-Path $configPath) {
     try {
-        Remove-Item -Path $steamCfgPath -Force -ErrorAction Stop
+        # Remove old backup if exists
+        if (Test-Path $backupPath) {
+            Remove-Item -Path $backupPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+        # Move (cut) config to desktop
+        Move-Item -Path $configPath -Destination $backupPath -Force -ErrorAction Stop
         Write-Host " OK" -ForegroundColor Green
-        Write-Host "        Removed update blocker" -ForegroundColor DarkGray
+        Write-Host "        Moved to: $backupPath" -ForegroundColor DarkGray
     } catch {
         Write-Host " FAILED" -ForegroundColor Red
-        Write-Host "        Please delete steam.cfg manually" -ForegroundColor DarkGray
-    }
-} else {
-    Write-Host " OK" -ForegroundColor Green
-    Write-Host "        No blocker found" -ForegroundColor DarkGray
-}
-Write-Host ""
-
-# ============================================
-# STEP 4: Remove old Millennium (force reinstall)
-# ============================================
-Write-Host "  [4/8] Removing old Millennium..." -ForegroundColor Yellow -NoNewline
-
-$millenniumRemoved = $false
-$extPath = Join-Path $steamPath "ext"
-$user32Path = Join-Path $steamPath "user32.dll"
-$version32Path = Join-Path $steamPath "version.dll"
-
-# Remove ext folder
-if (Test-Path $extPath) {
-    try {
-        Remove-Item -Path $extPath -Recurse -Force -ErrorAction Stop
-        $millenniumRemoved = $true
-    } catch {
-        Write-Host " PARTIAL" -ForegroundColor Yellow
-        Write-Host "        Could not remove ext folder" -ForegroundColor DarkGray
-    }
-}
-
-# Remove user32.dll (Millennium loader)
-if (Test-Path $user32Path) {
-    try {
-        Remove-Item -Path $user32Path -Force -ErrorAction Stop
-        $millenniumRemoved = $true
-    } catch {
-        # Ignore if can't delete
-    }
-}
-
-# Remove version.dll (alternative loader)
-if (Test-Path $version32Path) {
-    try {
-        Remove-Item -Path $version32Path -Force -ErrorAction Stop
-        $millenniumRemoved = $true
-    } catch {
-        # Ignore if can't delete
-    }
-}
-
-if ($millenniumRemoved) {
-    Write-Host " OK" -ForegroundColor Green
-    Write-Host "        Old Millennium removed" -ForegroundColor DarkGray
-} else {
-    Write-Host " OK" -ForegroundColor Green
-    Write-Host "        No old installation found" -ForegroundColor DarkGray
-}
-Write-Host ""
-
-# ============================================
-# STEP 5: Install Millennium (fresh install)
-# ============================================
-Write-Host "  [5/8] Installing Millennium..." -ForegroundColor Yellow
-Write-Host "        Please wait, downloading from steambrew.app..." -ForegroundColor DarkGray
-Write-Host ""
-
-try {
-    & { Invoke-Expression (Invoke-WebRequest 'https://steambrew.app/install.ps1' -UseBasicParsing).Content }
-    Write-Host ""
-    Write-Host "        Millennium installed!" -ForegroundColor Green
-} catch {
-    Write-Host "        Millennium installation failed!" -ForegroundColor Red
-    Write-Host "        Error: $_" -ForegroundColor DarkGray
-}
-Write-Host ""
-
-# ============================================
-# STEP 6: Install Steamtools
-# ============================================
-Write-Host "  [6/8] Checking Steamtools..." -ForegroundColor Yellow -NoNewline
-$steamtoolsPath = Join-Path $steamPath "xinput1_4.dll"
-
-if (Test-Path $steamtoolsPath) {
-    Write-Host " Already Installed" -ForegroundColor Green
-    Write-Host ""
-} else {
-    Write-Host " Not Found" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  [6/8] Installing Steamtools..." -ForegroundColor Yellow
-    Write-Host "        Please wait..." -ForegroundColor DarkGray
-    
-    try {
-        # Get and filter the installation script
-        $script = Invoke-RestMethod "https://steam.run"
-        $keptLines = @()
-
-        foreach ($line in $script -split "`n") {
-            $conditions = @(
-                ($line -imatch "Start-Process" -and $line -imatch "steam"),
-                ($line -imatch "steam\.exe"),
-                ($line -imatch "Start-Sleep" -or $line -imatch "Write-Host"),
-                ($line -imatch "cls" -or $line -imatch "exit"),
-                ($line -imatch "Stop-Process" -and -not ($line -imatch "Get-Process"))
-            )
-            
-            if (-not($conditions -contains $true)) {
-                $keptLines += $line
-            }
-        }
-
-        $SteamtoolsScript = $keptLines -join "`n"
-        Invoke-Expression $SteamtoolsScript *> $null
-
-        if (Test-Path $steamtoolsPath) {
-            Write-Host "        Steamtools installed!" -ForegroundColor Green
-        } else {
-            Write-Host "        Steamtools installation failed!" -ForegroundColor Red
-        }
-    } catch {
-        Write-Host "        Steamtools installation failed!" -ForegroundColor Red
         Write-Host "        Error: $_" -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "  Press any key to exit..."
+        $null = $Host.UI.RawUI.ReadKey()
+        exit 1
     }
-    Write-Host ""
-}
-
-# ============================================
-# STEP 7: Install Plugin
-# ============================================
-Write-Host "  [7/8] Installing $pluginName plugin..." -ForegroundColor Yellow
-
-# Ensure plugins folder exists
-$pluginsFolder = Join-Path $steamPath "plugins"
-if (-not (Test-Path $pluginsFolder)) {
-    New-Item -Path $pluginsFolder -ItemType Directory *> $null
-}
-
-$pluginPath = Join-Path $pluginsFolder $pluginName
-
-# Check if plugin already exists
-foreach ($plugin in Get-ChildItem -Path $pluginsFolder -Directory -ErrorAction SilentlyContinue) {
-    $jsonPath = Join-Path $plugin.FullName "plugin.json"
-    if (Test-Path $jsonPath) {
-        $json = Get-Content $jsonPath -Raw | ConvertFrom-Json
-        if ($json.name -eq $pluginName) {
-            Write-Host "        Plugin found, updating..." -ForegroundColor DarkGray
-            $pluginPath = $plugin.FullName
-            break
-        }
-    }
-}
-
-# Download and install plugin
-$tempZip = Join-Path $env:TEMP "$pluginName.zip"
-
-try {
-    Write-Host "        Downloading $pluginName..." -ForegroundColor DarkGray
-    Invoke-WebRequest -Uri $pluginLink -OutFile $tempZip *> $null
-    
-    Write-Host "        Extracting $pluginName..." -ForegroundColor DarkGray
-    Expand-Archive -Path $tempZip -DestinationPath $pluginPath -Force *> $null
-    Remove-Item $tempZip -ErrorAction SilentlyContinue
-    
-    Write-Host "  [7/8] Plugin installed!" -ForegroundColor Green
-} catch {
-    Write-Host "  [7/8] Plugin installation failed!" -ForegroundColor Red
-    Write-Host "        Error: $_" -ForegroundColor DarkGray
+} else {
+    Write-Host " SKIPPED" -ForegroundColor Yellow
+    Write-Host "        Config folder not found" -ForegroundColor DarkGray
 }
 Write-Host ""
 
 # ============================================
-# STEP 8: Launch Steam
+# STEP 4: Delete Steam files
 # ============================================
-Write-Host "  [8/8] Launching Steam..." -ForegroundColor Yellow -NoNewline
+Write-Host "  [4/7] Deleting Steam files..." -ForegroundColor Yellow
+
+$filesToDelete = @(
+    "Steam.dll",
+    "Steam.cfg",
+    "Steam2.dll"
+)
+
+foreach ($file in $filesToDelete) {
+    $filePath = Join-Path $steamPath $file
+    Write-Host "        Deleting $file..." -ForegroundColor DarkGray -NoNewline
+    
+    if (Test-Path $filePath) {
+        try {
+            Remove-Item -Path $filePath -Force -ErrorAction Stop
+            Write-Host " OK" -ForegroundColor Green
+        } catch {
+            Write-Host " FAILED" -ForegroundColor Red
+        }
+    } else {
+        Write-Host " Not Found" -ForegroundColor DarkGray
+    }
+}
+Write-Host ""
+
+# ============================================
+# STEP 5: Launch Steam (login required)
+# ============================================
+Write-Host "  [5/7] Launching Steam..." -ForegroundColor Yellow
+Write-Host "        Please login to Steam when prompted" -ForegroundColor Magenta
+Write-Host ""
+
+$steamExe = Join-Path $steamPath "steam.exe"
+Start-Process $steamExe
+
+Write-Host "  ===================================" -ForegroundColor DarkGray
+Write-Host "  Waiting for you to login to Steam..." -ForegroundColor Yellow
+Write-Host "  ===================================" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "  After you login, press any key to continue..." -ForegroundColor Cyan
+$null = $Host.UI.RawUI.ReadKey()
+Write-Host ""
+
+# ============================================
+# STEP 6: Close Steam
+# ============================================
+Write-Host "  [6/7] Closing Steam..." -ForegroundColor Yellow -NoNewline
+$steamProcesses = Get-Process -Name "steam*" -ErrorAction SilentlyContinue
+if ($steamProcesses) {
+    $steamProcesses | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 3
+}
 Write-Host " OK" -ForegroundColor Green
 Write-Host ""
 
-# Success message
+# ============================================
+# STEP 7: Restore config (except depotcache, stplug-in)
+# ============================================
+Write-Host "  [7/7] Restoring config..." -ForegroundColor Yellow
+
+if (Test-Path $backupPath) {
+    # Folders to exclude from restore
+    $excludeFolders = @("depotcache", "stplug-in")
+    
+    # Get all items in backup
+    $backupItems = Get-ChildItem -Path $backupPath -ErrorAction SilentlyContinue
+    
+    foreach ($item in $backupItems) {
+        $itemName = $item.Name.ToLower()
+        
+        # Skip excluded folders
+        if ($excludeFolders -contains $itemName) {
+            Write-Host "        Skipping $($item.Name)..." -ForegroundColor DarkGray
+            continue
+        }
+        
+        $destPath = Join-Path $configPath $item.Name
+        
+        Write-Host "        Restoring $($item.Name)..." -ForegroundColor DarkGray -NoNewline
+        
+        try {
+            if ($item.PSIsContainer) {
+                # It's a folder
+                if (Test-Path $destPath) {
+                    Remove-Item -Path $destPath -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                Copy-Item -Path $item.FullName -Destination $destPath -Recurse -Force -ErrorAction Stop
+            } else {
+                # It's a file
+                Copy-Item -Path $item.FullName -Destination $destPath -Force -ErrorAction Stop
+            }
+            Write-Host " OK" -ForegroundColor Green
+        } catch {
+            Write-Host " FAILED" -ForegroundColor Red
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "        Config restored (excluded: depotcache, stplug-in)" -ForegroundColor Green
+} else {
+    Write-Host "        No backup found to restore" -ForegroundColor Yellow
+}
+Write-Host ""
+
+# ============================================
+# Done
+# ============================================
 Write-Host "  ===================================" -ForegroundColor DarkGray
-Write-Host "  Installation Complete!" -ForegroundColor Green
+Write-Host "  Steam Reset Complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Note: First Steam startup will be slower." -ForegroundColor Yellow
-Write-Host "  Don't panic and wait for Steam to load!" -ForegroundColor DarkGray
+Write-Host "  Backup location: $backupPath" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "  Press any key to launch Steam..."
-$null = $Host.UI.RawUI.ReadKey()
-
-# Launch Steam and enable plugin
-Start-Process "steam://millennium/settings/plugins/enable/$pluginName"
-
-Write-Host ""
-Write-Host "  Done! Steam is starting with Millennium." -ForegroundColor Green
 Write-Host "  Press any key to exit..."
 $null = $Host.UI.RawUI.ReadKey()
