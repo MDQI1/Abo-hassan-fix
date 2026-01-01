@@ -1,30 +1,54 @@
 #Requires -Version 5.1
-# Abo Hassan - Steam Fix
+# Abo Hassan - Steam + Millennium Fix
+# Fixes Error 126
 
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process PowerShell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     exit
 }
 
+Clear-Host
 $steam = "C:\Program Files (x86)\Steam"
 
-Write-Host "`n  Fixing Steam...`n" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Abo Hassan - Steam Fix" -ForegroundColor Cyan
+Write-Host "  ======================" -ForegroundColor DarkGray
+Write-Host ""
 
-# Kill Steam
+# Step 1: Kill Steam
+Write-Host "  [1/4] Closing Steam..." -ForegroundColor Yellow
 Get-Process -Name "steam*" -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 3
 Get-Process -Name "steam*" -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Host "        Done" -ForegroundColor Green
 
-# Remove Millennium + Steamtools
-Remove-Item "$steam\user32.dll", "$steam\user32.dll.bak" -Force -ErrorAction SilentlyContinue
-Remove-Item "$steam\version.dll", "$steam\version.dll.bak" -Force -ErrorAction SilentlyContinue
-Remove-Item "$steam\xinput1_4.dll" -Force -ErrorAction SilentlyContinue
-Remove-Item "$steam\ext", "$steam\plugins", "$steam\stplug-in" -Recurse -Force -ErrorAction SilentlyContinue
+# Step 2: Remove ALL Millennium files
+Write-Host "  [2/4] Removing Millennium..." -ForegroundColor Yellow
+Remove-Item "$steam\millennium*.dll" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\user32.dll" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\user32.dll.bak" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\version.dll" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\version.dll.bak" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\python*.dll" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\SDL3*.dll" -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\ext" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\plugins" -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "        Done" -ForegroundColor Green
 
-# Clear cache
-Remove-Item "$steam\appcache", "$steam\depotcache", "$steam\config\htmlcache" -Recurse -Force -ErrorAction SilentlyContinue
+# Step 3: Clear cache
+Write-Host "  [3/4] Clearing cache..." -ForegroundColor Yellow
+Remove-Item "$steam\appcache" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$steam\config\htmlcache" -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "        Done" -ForegroundColor Green
 
-Write-Host "  Done! Starting Steam..." -ForegroundColor Green
-Start-Process "$steam\steam.exe"
+# Step 4: Install fresh Millennium
+Write-Host "  [4/4] Installing Millennium..." -ForegroundColor Yellow
+Write-Host ""
+& { Invoke-Expression (Invoke-WebRequest 'https://steambrew.app/install.ps1' -UseBasicParsing).Content }
 
-Start-Sleep -Seconds 2
+Write-Host ""
+Write-Host "  ======================" -ForegroundColor DarkGray
+Write-Host "  Fixed!" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Press any key to exit..."
+$null = $Host.UI.RawUI.ReadKey()
