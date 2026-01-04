@@ -45,15 +45,15 @@ $ProgressPreference = 'SilentlyContinue'
 # HEADER
 # ============================================
 Write-Host ""
-Write-Host "  ╔═══════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "  ║   Abo Hassan - All-in-One Installer   ║" -ForegroundColor Cyan
-Write-Host "  ║              Version 2.0              ║" -ForegroundColor Cyan
-Write-Host "  ╚═══════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "  =========================================" -ForegroundColor Cyan
+Write-Host "     Abo Hassan - All-in-One Installer     " -ForegroundColor Cyan
+Write-Host "               Version 2.0                 " -ForegroundColor Cyan
+Write-Host "  =========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  This will install:" -ForegroundColor DarkGray
-Write-Host "    • Millennium (Steam modding framework)" -ForegroundColor DarkGray
-Write-Host "    • Steamtools (unlock all games)" -ForegroundColor DarkGray
-Write-Host "    • Luatools Plugin" -ForegroundColor DarkGray
+Write-Host "    - Millennium (Steam modding framework)" -ForegroundColor DarkGray
+Write-Host "    - Steamtools (unlock all games)" -ForegroundColor DarkGray
+Write-Host "    - Luatools Plugin" -ForegroundColor DarkGray
 Write-Host ""
 
 # ============================================
@@ -223,11 +223,11 @@ try {
     
     if (Test-Path $installerPath) {
         Write-Host ""
-        Write-Host "        ╔═══════════════════════════════════════════╗" -ForegroundColor Magenta
-        Write-Host "        ║  Millennium installer will open now!      ║" -ForegroundColor Magenta
-        Write-Host "        ║  Click 'Install' and wait for it to      ║" -ForegroundColor Magenta
-        Write-Host "        ║  finish, then close the installer.       ║" -ForegroundColor Magenta
-        Write-Host "        ╚═══════════════════════════════════════════╝" -ForegroundColor Magenta
+        Write-Host "        =============================================" -ForegroundColor Magenta
+        Write-Host "          Millennium installer will open now!      " -ForegroundColor Magenta
+        Write-Host "          Click 'Install' and wait for it to       " -ForegroundColor Magenta
+        Write-Host "          finish, then close the installer.        " -ForegroundColor Magenta
+        Write-Host "        =============================================" -ForegroundColor Magenta
         Write-Host ""
         
         # Run installer and wait
@@ -395,16 +395,16 @@ Start-Process -FilePath $steamExePath -ArgumentList "-clearbeta"
 # DONE!
 # ============================================
 Write-Host ""
-Write-Host "  ╔═══════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "  ║     Installation Complete! 🎉         ║" -ForegroundColor Green
-Write-Host "  ╚═══════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "  =========================================" -ForegroundColor Green
+Write-Host "        Installation Complete!             " -ForegroundColor Green
+Write-Host "  =========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Everything installed successfully!" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Notes:" -ForegroundColor Yellow
-Write-Host "    • First Steam startup may be slower" -ForegroundColor DarkGray
-Write-Host "    • If Steam crashes, try running it again" -ForegroundColor DarkGray
-Write-Host "    • Cache backup saved to: cache-backup-*" -ForegroundColor DarkGray
+Write-Host "    - First Steam startup may be slower" -ForegroundColor DarkGray
+Write-Host "    - If Steam crashes, try running it again" -ForegroundColor DarkGray
+Write-Host "    - Cache backup saved to: cache-backup-*" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Press any key to exit..."
 $null = $Host.UI.RawUI.ReadKey()
